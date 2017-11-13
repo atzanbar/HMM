@@ -8,7 +8,7 @@ IN WDT ,	1
 , JJ CC	95
 : SYM CD	1
 start NNS :	54
-start start 1
+start start 39832
 : VBZ JJR	1
 NN NN RP	2
 '' MD CD	1
@@ -34,6 +34,7 @@ CD ) :	6
 NN NN RB	273
 VB VBP JJ	2
 , `` DT	89
+start 39832
 CD ) .	79
 start WP NNP	5
 CD ) ,	59

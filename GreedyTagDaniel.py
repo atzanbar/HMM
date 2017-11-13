@@ -84,28 +84,43 @@ class GreedyDecode:
     def tagger(self, inputText, outputFile):
         lenOfInput = len(inputText)
         with open(outputFile, "w") as output:
-            for inputLine in inputText:
-                inputLine = inputText[1]
-                inputSentence = inputLine.split(" ")[:-1]
-                previous2 = "start"
-                previous1 = "start"
-                for inputWord in inputSentence:
-                    scoreNow = None
-                    wordTag = None
-                    for tag in self.taglist:
-                        testScore = get_score(inputWord, tag, previous1, previous2, self.qdict, self.edict, self.numWords)
-                        if testScore > scoreNow:
-                            scoreNow = testScore
-                            wordTag = tag
-                            previous2 = previous1
-                            previous1 = wordTag
-                    toWrite = inputWord + "/" + wordTag + " "
-                    output.writelines(toWrite)
-                output.writelines("\n")
-                print (str(inputText.index(inputLine)) + " of " + str(lenOfInput))
-                print
+            inputLine = inputText[1]
+            inputSentence = inputLine.split(" ")[:-1]
+            previous2 = "start"
+            previous1 = "start"
+            for inputWord in inputSentence:
+                scoreNow = None
+                wordTag = None
+                for tag in self.taglist:
+                    testScore = get_score(inputWord, tag, previous1, previous2, self.qdict, self.edict, self.numWords)
+                    print testScore
+                    if scoreNow is None or testScore > scoreNow:
+                        scoreNow = testScore
+                        wordTag = tag
+                        previous2 = previous1
+                        previous1 = wordTag
+                toWrite = inputWord + "/" + wordTag + " "
+                output.writelines(toWrite)
+            output.writelines("\n")
+            print (str(inputText.index(inputLine)) + " of " + str(lenOfInput))
+            print
 
-
+    def checkClassify(self, testfile, myfile):
+        correct = 0
+        uncorrect = 0
+        with open(testfile, "r") as test:
+            with open(myfile, "r") as my:
+                test = test.readlines()
+                my = my.readlines()
+                for linetest, linemy in test, my :
+                    wordtest = linetest.split()
+                    wordmy = linemy.split()
+                    for i in range(0 ,len(wordtest)):
+                        if wordtest[i] == wordmy[i]:
+                            correct += 1
+                        else:
+                            uncorrect += 1
+        print (correct*1.0)/(uncorrect*1.0)
 
 
 
