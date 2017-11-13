@@ -4,12 +4,12 @@ from collections import defaultdict
 from itertools import chain
 from math import log
 
-
-TAGS = []
+from hmmscore import get_score
 
 class GreedyDecode:
     def __init__(self, inputFile, qFile, eFile, outputFile, extraFile):
-        self.taglist = list()
+        self.numWords = 0
+        self.taglist = set()
         self.edict = dict()
         self.qdict = dict()
         #turn the q data to q dictionary
@@ -17,27 +17,18 @@ class GreedyDecode:
             self.q = qFileOpened.readlines()
             for line in self.q:
                 linelist = line.split()
-                self.qdict[tuple(linelist[:-1])] = linelist[-1]
+                self.taglist |= set(linelist[:-1])
+                self.qdict[tuple(linelist[:-1])] = int(linelist[-1])
         # turn the e data to e dictionary
         with open(eFile, "r") as eFileOpened:
             self.e = eFileOpened.readlines()
             for line in self.e:
                 linelist = line.split()
-                self.edict[tuple(linelist[:-1])] = linelist[-1]
-        # scan optional tags
-        for key in self.qdict:
-            if ' ' not in key and key not in self.taglist:
-                self.taglist.append(key)
+                self.edict[tuple(linelist[:-1])] = int(linelist[-1])
+                self.numWords += 1
         with open(inputFile, "r") as inputFileOpened:
             self.inputText = inputFileOpened.readlines()
             self.tagger(self.inputText, outputFile)
-
-    def calNumWords(self):
-        numWords = 0
-        for pair in self.qdict:
-            if len(pair) == 2:
-                numWords += int(pair[1])
-        return numWords
 
     def score(self, word, tag, previoustag1, previoustag2):
         numWords = self.calNumWords()
@@ -91,10 +82,10 @@ class GreedyDecode:
         return pos_score + escore
 
     def tagger(self, inputText, outputFile):
-        wordCount = self.calNumWords()
         lenOfInput = len(inputText)
         with open(outputFile, "w") as output:
             for inputLine in inputText:
+                inputLine = inputText[1]
                 inputSentence = inputLine.split(" ")[:-1]
                 previous2 = "start"
                 previous1 = "start"
@@ -102,7 +93,7 @@ class GreedyDecode:
                     scoreNow = None
                     wordTag = None
                     for tag in self.taglist:
-                        testScore = self.get_score(inputWord, tag, previous1, previous2, self.edict, self.qdict, wordCount)
+                        testScore = get_score(inputWord, tag, previous1, previous2, self.qdict, self.edict, self.numWords)
                         if testScore > scoreNow:
                             scoreNow = testScore
                             wordTag = tag
@@ -112,6 +103,7 @@ class GreedyDecode:
                     output.writelines(toWrite)
                 output.writelines("\n")
                 print (str(inputText.index(inputLine)) + " of " + str(lenOfInput))
+                print
 
 
 
