@@ -10,6 +10,7 @@ def get_score(word,tag,prev_tag,prev_prev_tag,ngram_counts,emission_counts,emiss
     b = (0.15*(bigram_count/((pos_prev_count*1.0)+1)))
     c = (0.05*(pos_count/((emission_counts_len*1.0) + 1)))
     pos_score = a + b + c
+
     escore = emission_counts.get(tuple([word, tag]), 0)/(emission_counts_len +1)
     if escore == 0:
         return  np.log(pos_score)
