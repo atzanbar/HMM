@@ -1,17 +1,32 @@
+import hotshot
 import sys
 import os.path
 from collections import defaultdict
 from itertools import chain
 from math import log
 
-from hmmscore import get_score
+import time
+
+from hmmscore import Scorer
+
+qFile = 'q.mle'
+eFile = 'e.mle'
+inputFile = 'ass1-tagger-test-input'
+inputFileTaged = 'ass1-tagger-test'
+unk_score=0.1
+unk_det=3
 
 class GreedyDecode:
-    def __init__(self, inputFile, qFile, eFile, outputFile, extraFile):
-        self.numWords = 0
+    def __init__(self, inputFile, qFile, eFile, outputFile,tfile,tfileinput):
+        self.qdict = dict()
+        self.qFile = qFile
+        self.eFile = eFile
+        self.tfile = tfile
+        self.tfileinput = tfileinput
+        self.totalWords = 0
         self.taglist = set()
         self.edict = dict()
-        self.qdict = dict()
+        self.wordCount = defaultdict(int)
         #turn the q data to q dictionary
         with open(qFile, "r") as qFileOpened:
             self.q = qFileOpened.readlines()
@@ -24,103 +39,69 @@ class GreedyDecode:
             self.e = eFileOpened.readlines()
             for line in self.e:
                 linelist = line.split()
+                self.wordCount[linelist[0]] += int(linelist[-1])
                 self.edict[tuple(linelist[:-1])] = int(linelist[-1])
-                self.numWords += 1
-        with open(inputFile, "r") as inputFileOpened:
-            self.inputText = inputFileOpened.readlines()
-            self.tagger(self.inputText, outputFile)
+                self.totalWords += 1
+        unk_count = int(unk_score * self.totalWords)
+        self.edict[('unk','nn')] = unk_count
+        self.qdict[('nn'),]+=unk_count
+        self.totalWords += unk_count
+        self.wordCount['unk'] += unk_count
 
-    def score(self, word, tag, previoustag1, previoustag2):
-        numWords = self.calNumWords()
-        countABC = 0
-        countAB = 0
-        countBC = 0
-        countB = 0
-        countC = 0
-        lamdaq1 = 0.8
-        lamdaq2 = 0.15
-        lamdaq3 = 0.05
-        lamdae1 = 0.95
-        lamdae2 = 0.05
-        countWPOS = 0
-        countPOS = 0
-        for pair in self.qdict:
-            if len(pair) == 4:
-                if (pair[0], pair[1], pair[2]) == (previoustag2, previoustag1, tag):
-                    countABC = int(pair[3])
-                if (pair[0], pair[1]) == (previoustag2, previoustag1):
-                    countAB += int(pair[3])
-            elif len(pair) == 3:
-                if (pair[0], pair[1]) == (previoustag1, tag):
-                    countBC = int(pair[2])
-                if (pair[0]) == previoustag1:
-                    countB += int(pair[2])
-            elif len(pair) == 2:
-                if (pair[0]) == tag:
-                    countC = int(pair[1])
-        if countABC == 0:
-            if countBC == 0:
-                qResult = (lamdaq3 * countC * 1.0 / (numWords * 1.0))
-            else:
-                qResult = (lamdaq2 * countBC * 1.0 / (countB * 1.0)) + (lamdaq3 * countC * 1.0 / (numWords * 1.0))
-        else:
-            qResult = (lamdaq1*countABC*1.0/(countAB*1.0)) + (lamdaq2*countBC*1.0/(countB*1.0)) + (lamdaq3*countC*1.0/(numWords*1.0))
-        for pair in self.edict:
-            if pair[1] == tag:
-                countPOS += int(pair[2])
-                if pair[0] == word:
-                    countWPOS = int(pair[2])
-        eResult = (lamdae1*countWPOS/(countPOS*1.0)) + (lamdae2/countPOS)
-        return log(qResult, 10) + log(eResult, 10)
 
-    def get_score(self, word, tag, prev_tag, prev_prev_tag, ngram_counts, emission_counts, emission_counts_len):
-        pos_score = 0.8 * (
-        ngram_counts[tuple([prev_prev_tag, prev_tag, tag])] / (ngram_counts[tuple([prev_prev_tag, prev_tag])] + 1)) \
-                    * 0.15 * (ngram_counts[tuple([prev_tag, tag])] / (ngram_counts[tuple(prev_tag)] + 1)) \
-                    * 0.05 * (ngram_counts[tuple(tag)] / emission_counts_len)
-        escore = emission_counts[word] + 1 / emission_counts_len + 1
-        return pos_score + escore
 
-    def tagger(self, inputText, outputFile):
-        lenOfInput = len(inputText)
-        with open(outputFile, "w") as output:
-            inputLine = inputText[1]
-            inputSentence = inputLine.split(" ")[:-1]
-            previous2 = "start"
-            previous1 = "start"
-            for inputWord in inputSentence:
-                scoreNow = None
-                wordTag = None
-                for tag in self.taglist:
-                    testScore = get_score(inputWord, tag, previous1, previous2, self.qdict, self.edict, self.numWords)
-                    print testScore
-                    if scoreNow is None or testScore > scoreNow:
-                        scoreNow = testScore
-                        wordTag = tag
-                        previous2 = previous1
-                        previous1 = wordTag
-                toWrite = inputWord + "/" + wordTag + " "
-                output.writelines(toWrite)
-            output.writelines("\n")
-            print (str(inputText.index(inputLine)) + " of " + str(lenOfInput))
-            print
 
-    def checkClassify(self, testfile, myfile):
-        correct = 0
-        uncorrect = 0
-        with open(testfile, "r") as test:
-            with open(myfile, "r") as my:
-                test = test.readlines()
-                my = my.readlines()
-                for linetest, linemy in test, my :
-                    wordtest = linetest.split()
-                    wordmy = linemy.split()
-                    for i in range(0 ,len(wordtest)):
-                        if wordtest[i] == wordmy[i]:
-                            correct += 1
-                        else:
-                            uncorrect += 1
-        print (correct*1.0)/(uncorrect*1.0)
+    def tagger(self, line):
+        scorer = Scorer(self.qdict, self.edict,self.totalWords,self.wordCount)
+        inputSentence = line.strip('.').lower().split(" ")
+        retdic = {}
+        previous2 = "start"
+        previous1 = "start"
+        for inputWord in inputSentence:
+            scoreNow = None
+            wordTag = None
+            for tag in self.taglist:
+                testScore = scorer.get_score(inputWord, tag, previous1, previous2)
+                #print (testScore)
+                if testScore==1:
+                    wordTag = tag
+                    break
+                if (scoreNow is None) or testScore > scoreNow:
+                    scoreNow = testScore
+                    wordTag = tag
+                    previous2 = previous1
+                    previous1 = wordTag
+            retdic[inputWord] = wordTag
+        #print(retdic)
+        return retdic
+
+
+    def multiTagger(self):
+        start_time = time.time()
+        linelistTagged = []
+        linelistAnswer = []
+        match = 0
+        words = 0
+        for line in file(self.tfile):
+            items = [item for item in line.lower().split(" ")]
+            linelistTagged.append({d.split("/")[0]:d.split("/")[1] for d in items})
+
+        linecounter = 0
+        for line in file(self.tfileinput):
+            linelistAnswer.append(self.tagger(line))
+        for i in range(len(linelistAnswer)):
+            diffkeys = [k for k in linelistTagged[i].keys() if linelistTagged[i].get(k,1) != linelistAnswer[i].get(k,1)];
+            for w in diffkeys:
+                print("word : '" + w + "'  train : '" +  linelistTagged[i].get(w,'n/a') + "' , actual : '" +  linelistAnswer[i].get(w,'n/a') +"'")
+            matchcount = len(linelistTagged) - len(diffkeys)
+            match += matchcount
+            words +=len(linelistTagged[i])
+        print match/(words*1.0)
+        print("--- %s seconds ---" % (time.time() - start_time))
+
+
+
+
 
 
 
@@ -130,6 +111,19 @@ if __name__ == '__main__':
     def usage():
           print("Run this program as follow:\n"
                 "python GreedyTag.py input_file_name q_mle_filename e_mle_filename output_file_name extra_file_name")
+
+
+    def run_profiler(a):
+        import cProfile, pstats, StringIO
+        pr = cProfile.Profile()
+        pr.enable()
+        a()
+        pr.disable()
+        s = StringIO.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print s.getvalue()
 
     def processingInput(inputParameters):
         """
@@ -146,9 +140,11 @@ if __name__ == '__main__':
             return inputParameters
         else:
             print("Wrong number of parameters.")
-            usage()
             exit()
 
-    inputParameters = sys.argv[1:]
-    (inputFile, qFile, eFile, outputFile, extraFile) = processingInput(inputParameters)
-    GreedyDecode(inputFile, qFile, eFile, outputFile, extraFile)
+    greedy_decoder = GreedyDecode(inputFile, qFile, eFile, 'out.txt','ass1-tagger-test','ass1-tagger-test-input')
+    greedy_decoder.multiTagger()
+    #run_profiler(greedy_decoder.multiTagger)
+
+
+
