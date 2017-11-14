@@ -90,12 +90,17 @@ class GreedyDecode:
         for line in file(self.tfileinput):
             linelistAnswer.append(self.tagger(line))
         for i in range(len(linelistAnswer)):
-            diffkeys = [k for k in linelistTagged[i].keys() if linelistTagged[i].get(k,1) != linelistAnswer[i].get(k,1)];
-            for w in diffkeys:
-                print("word : '" + w + "'  train : '" +  linelistTagged[i].get(w,'n/a') + "' , actual : '" +  linelistAnswer[i].get(w,'n/a') +"'")
-            matchcount = len(linelistTagged) - len(diffkeys)
-            match += matchcount
-            words +=len(linelistTagged[i])
+                matchcount=0
+                for key in linelistAnswer[i].keys():
+                    answer_value = linelistTagged[i].get(key,1)
+                    if answer_value !=1:
+                        words +=1
+                        est_value=linelistAnswer[i][key]
+                        if answer_value == est_value:
+                            match +=1
+                        else:
+                            print("word : '" + key + "'  train : '" +  est_value + "' , actual : '" + answer_value +"'")
+
         print match/(words*1.0)
         print("--- %s seconds ---" % (time.time() - start_time))
 
