@@ -4,7 +4,7 @@ import os.path
 from collections import defaultdict
 from itertools import chain
 from math import log
-
+from utilty import validate_row_loss ,run_profiler
 import time
 
 from hmmscore import Scorer
@@ -13,7 +13,7 @@ qFile = 'q.mle'
 eFile = 'e.mle'
 inputFile = 'ass1-tagger-test-input'
 inputFileTaged = 'ass1-tagger-test'
-unk_score=0.1
+unk_score=0.4
 unk_det=3
 
 class GreedyDecode:
@@ -53,8 +53,8 @@ class GreedyDecode:
 
     def tagger(self, line):
         scorer = Scorer(self.qdict, self.edict,self.totalWords,self.wordCount)
-        inputSentence = line.strip('.').lower().split(" ")
-        retdic = {}
+        inputSentence = line.strip('\n').lower().split(" ")
+        retdic = []
         previous2 = "start"
         previous1 = "start"
         for inputWord in inputSentence:
@@ -71,7 +71,7 @@ class GreedyDecode:
                     wordTag = tag
                     previous2 = previous1
                     previous1 = wordTag
-            retdic[inputWord] = wordTag
+            retdic.append([inputWord, wordTag])
         #print(retdic)
         return retdic
 
@@ -84,32 +84,22 @@ class GreedyDecode:
         words = 0
         for line in file(self.tfile):
             items = [item for item in line.lower().split(" ")]
-            linelistTagged.append({d.split("/")[0]:d.split("/")[1] for d in items})
-
-        linecounter = 0
+            linelistTagged.append([[w for w in d.strip('\n').split('/')] for d in items])
         for line in file(self.tfileinput):
             linelistAnswer.append(self.tagger(line))
         for i in range(len(linelistAnswer)):
-                matchcount=0
-                for key in linelistAnswer[i].keys():
-                    answer_value = linelistTagged[i].get(key,1)
-                    if answer_value !=1:
-                        words +=1
-                        est_value=linelistAnswer[i][key]
-                        if answer_value == est_value:
-                            match +=1
-                        else:
-                            print("word : '" + key + "'  train : '" +  est_value + "' , actual : '" + answer_value +"'")
-
+                matcht=0
+                wordst= 0
+                matcht, wordst = validate_row_loss(linelistAnswer[i],linelistTagged[i])
+                if (matcht!=wordst):
+                    print ("line :"+ str(i))
+                    print (linelistAnswer[i])
+                    print(linelistTagged[i])
+                    print ('\n')
+                match += matcht
+                words += wordst
         print match/(words*1.0)
         print("--- %s seconds ---" % (time.time() - start_time))
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
@@ -118,17 +108,7 @@ if __name__ == '__main__':
                 "python GreedyTag.py input_file_name q_mle_filename e_mle_filename output_file_name extra_file_name")
 
 
-    def run_profiler(a):
-        import cProfile, pstats, StringIO
-        pr = cProfile.Profile()
-        pr.enable()
-        a()
-        pr.disable()
-        s = StringIO.StringIO()
-        sortby = 'cumulative'
-        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
-        print s.getvalue()
+
 
     def processingInput(inputParameters):
         """
@@ -148,6 +128,7 @@ if __name__ == '__main__':
             exit()
 
     greedy_decoder = GreedyDecode(inputFile, qFile, eFile, 'out.txt','ass1-tagger-test','ass1-tagger-test-input')
+
     greedy_decoder.multiTagger()
     #run_profiler(greedy_decoder.multiTagger)
 

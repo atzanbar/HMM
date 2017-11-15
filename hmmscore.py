@@ -58,7 +58,7 @@ class Scorer:
 
         pos_count = self.ngram_counts.get(tuple([tag]),1)
         emission_count = self.emission_counts.get(tuple([word, tag]), 1)
-        escore = 0.7*(emission_count/((pos_count*1.0)+1)) + 0.2* unk_score  +0.1* (1.0/self.emission_len)
+        escore = 0.5*(emission_count/((pos_count*1.0)+1)) + 0.4* unk_score  +0.1* (1.0/self.emission_len)
 
         if escore > 0.55:
             return 1
