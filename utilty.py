@@ -6,17 +6,17 @@ def words(stringIterable):
             yield word
 
 
-def run_profiler(a):
-    import cProfile, pstats, StringIO
+def run_profiler(f,*args):
+    import cProfile, pstats , StringIO
     pr = cProfile.Profile()
     pr.enable()
-    a()
+    f(*args)
     pr.disable()
     s = StringIO.StringIO()
     sortby = 'cumulative'
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
-    print s.getvalue()
+    print (s.getvalue())
 
 
 
@@ -26,6 +26,8 @@ def validate_row_loss(orig_row,tagged_row):
     for i in range(len(orig_row)):
         if orig_row[i][0]== tagged_row[i][0]:
             words +=1
-            if orig_row[i][1]== tagged_row[i][1]:
+            if str(orig_row[i][1]).lower()== str(tagged_row[i][1]).lower():
                  match +=1
+            else:
+                print ("word: "+orig_row[i][0] + " tag_orig : " + orig_row[i][1] + " tag_tagged : " + str(tagged_row[i][1]))
     return  match,words
